@@ -10,7 +10,6 @@ from sklearn.feature_selection import RFECV
 
 from sklearn import svm
 from sklearn import metrics
-import multiprocessing as mp
 
 # The following imported libraries are for intergrating GeneMANIA data as Functional Evidence
 import sys
@@ -72,6 +71,7 @@ class CLF_Wrapper:
 	def __init__(self, data, targets, forest=False):
 		self.clf = RandomForestClassifier(n_estimators=100)
 
+	def readData(self, file = ):
 
 
 	def kFoldCV(self, folds=10):
