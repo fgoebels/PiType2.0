@@ -66,46 +66,46 @@ class Pitype:
 	def __init__(self):
 		return None
 
-
 class CLF_Wrapper:
-	def __init__(self, data, targets, forest=False):
+	def __init__(self):
 		self.clf = RandomForestClassifier(n_estimators=100)
+		self.fit()
 
-	def readData(self, file = ):
+	def fit(self, data_loc = "https://raw.githubusercontent.com/fgoebels/PiType2.0/master/ob_nob.dat.txt"):
+		data_FH = urllib2.urlopen(data_loc)
+		data_FH.readline()
+		targets = []
+		data = []
+		for line in data_FH:
+			line = line.rstrip()
+			line = line.split("\t")
+			scores = line[2:-1]
+			data.append(map(float, scores))
+			label = line[-1]
+			if label == "nob":
+				targets.append(0)
+			else:
+				targets.append(1)
+		data_FH.close()
+		targets = np.array(targets)
+		data = np.array(data)
+		self.clf.fit(data, targets)
 
-
-	def kFoldCV(self, folds=10):
-		folds = StratifiedKFold(self.targets, folds)
-		return cross_val_predict(self.clf, self.data, self.targets, cv=folds)
-
-	def getValScores(self, folds=10):
-		#		return cross_validation.cross_val_score(self.clf, self.data, self.targets, cv=10, scoring='f1')
-		preds = self.kFoldCV(folds)
-		precision = metrics.precision_score(self.targets, preds, average=None)[1]
-		recall = metrics.recall_score(self.targets, preds, average=None)[1]
-		fmeasure = metrics.f1_score(self.targets, preds, average=None)[1]
-		auc_pr = average_precision_score(self.targets, preds)
-		auc_roc = roc_auc_score(self.targets, preds)
-		return [precision, recall, fmeasure, auc_pr, auc_roc]
-
-	def getPRcurve(self, folds=10):
-		all_probas = []
-		all_targets = []
-		for train, test in StratifiedKFold(self.targets, folds):
-			probas = self.clf.fit(self.data[train], self.targets[train]).predict_proba(self.data[test])
-			all_probas.extend(probas[:, 1])  # make sure that 1 is positive class in binarizied class vector
-			all_targets.extend(self.targets[test])
-		return precision_recall_curve(all_targets, all_probas)
-
-	#		return roc_curve(all_targets, all_probas)
+	def predict_proba(self, toPred):
+		probas = self.clf.predict_proba(toPred)
+		return probas[:,1]
 
 	def predict(self, toPred):
-		return self.clf.predict_proba(toPred)
+		preds = self.clf.predict(toPred)
+		return preds
 
 def main():
-	thisELM = ELM()
+	this_ELM = ELM()
+	this_clf =  CLF_Wrapper()
 	for edge in ["P04637\tP02340", "Q2XVY7\tQ29537"]:
-		print thisELM.getscore(edge)
+		scores = np.array(this_ELM.getscore(edge)).reshape(1, -1)
+		print this_clf.predict(scores)
+		print this_clf.predict_proba(scores)
 	return None
 
 if __name__ == "__main__":
