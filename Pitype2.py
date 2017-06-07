@@ -63,8 +63,22 @@ class ELM:
 		return self.prot2counts[protA], self.prot2counts[protB]
 
 class Pitype:
-	def __init__(self):
+
+	def __init__(self, fs):
+
+		self.clf = CLF_Wrapper()
+		self.fs = self.get_fs_comb(fs)
 		return None
+
+	def get_fs_comb(self, comb_string):
+		# Create feature combination
+		scores = [ELM()]
+		this_scores = []
+		for i, feature_selection in enumerate(comb_string):
+			if feature_selection == "1": this_scores.append(scores[i])
+		return this_scores
+
+
 
 class CLF_Wrapper:
 	def __init__(self):
