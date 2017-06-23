@@ -104,7 +104,7 @@ class Graph(Exception):
         if rev: graph = self.flip
         else: graph = self.graph
         if node == None: raise Exception("incomplete arguments: provide graph/node")
-        if node not in graph: raise Exception("invalid node: node not present in graph")
+        if node not in graph: raise Exception("invalid node (%s): node not present in graph" % node)
         if visited == None: visited = {}
         if target and node == target: return True
         visited[node] = set(list(graph[node])[:])

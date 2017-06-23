@@ -11,6 +11,8 @@ import re
 
 subfldr = os.path.realpath(os.path.abspath(os.path.join(os.path.split(inspect.getfile( inspect.currentframe() ))[0],"TCSS")))
 sys.path.append(subfldr)
+script_dir = subfldr.rsplit(os.sep, 1)[0] + os.sep
+print script_dir
 
 from main import load_semantic_similarity, calculate_semantic_similarity
 
@@ -18,15 +20,13 @@ from main import load_semantic_similarity, calculate_semantic_similarity
 class GOSim(object):
 	objs = ""
 
-	def __init__(self, onto_F, gene_anno_F):
+	def __init__(self, taxid, gene_anno_F= script_dir + "go-basic.obo"):
 		self.name = ["Sim_CC", "Sim_BP", "Sim_MF"]
 		if GOSim.objs == "":
-			GOSim.objs = load_semantic_similarity(onto_F, gene_anno_F, "C:2.4,P:3.5,F:3.3", "IEA")
+			GOSim.objs = load_semantic_similarity( gene_anno_F, taxid, "C:2.4,P:3.5,F:3.3", "")
 
-	def getScores(self, a, b, elutionData):
-		return (a, b)
-
-	def calculateScore(self, a, b):
+	def calculateScore(self, edge):
+		a, b = edge.split("\t")
 		out = []
 		domain_def = {'C': 'Cellular Component', 'P': 'Biological Process', 'F': 'Molecular Function'}
 		for domain in domain_def:
@@ -67,6 +67,7 @@ class ELM:
 			if regex == "": continue
 			regex = regex = re.sub("\"", "", regex)
 			self.elms.append(re.compile(regex))
+		elm_FH.close()
 
 	def countELMs(self, prot):
 		counts = 0
@@ -75,11 +76,45 @@ class ELM:
 			counts += hits
 		self.prot2counts[prot] = counts
 
-	def getscore(self, edge):
+	def calculateScore(self, edge):
 		protA, protB = edge.split("\t")
 		for p in [protA, protB]:
 			if p not in self.prot2counts: self.countELMs(p)
 		return self.prot2counts[protA], self.prot2counts[protB]
+
+class STRING:
+	def __init__(self, taxid):
+		self.name = ["Score", "Fusion", "Phylogenetic_profiling", "Homology", "Co-expression", "Experiment", "Database", "Textmining"]
+		self.score_map = {"score" : 0 , "fscore" : 1, "pscore" : 2, "hscore" : 3, "ascore" : 4, "escore" : 5, "dscore" : 6, "tscore" : 7}
+		self.taxid = taxid
+		self.get_score = "http://string-db.org/api/psi-mi-tab/interactionsList?identifiers=%s%%0D%s&species=%s&limit=0"
+		self.get_degree = "http://string-db.org/api/tsv/interactorsList?identifiers=%s%%0D%s&species=%s"
+
+	def calculateScore(self, edge):
+		a, b = edge.split("\t")
+		out = [0] * len(self.score_map.keys())
+ 		scoreFH = urllib2.urlopen(self.get_score % (a,b, self.taxid))
+		for line in scoreFH:
+			line = line.rstrip()
+			if line == "": continue
+			scores = line.rsplit("\t",1)[1]
+			for score in scores.split("|"):
+				name, score = score.split(":")
+				out[self.score_map[name]] = float(score)
+		scoreFH.close()
+
+		degree = 0
+		degreeFH = urllib2.urlopen(self.get_degree % (a,b, self.taxid))
+		degreeFH.readline()
+		for _ in degreeFH:
+			degree += 1
+		degreeFH.close()
+		out.append(degree-2)
+		return out
+
+
+
+
 
 class Pitype:
 
@@ -97,7 +132,23 @@ class Pitype:
 			if feature_selection == "1": this_scores.append(scores[i])
 		return this_scores
 
+class Degree:
 
+		def __init__(self, networkfile = script_dir + "intact_biogrid.txt"):
+			self.node_degree = {}
+			netFH = open(networkfile)
+			for line in netFH:
+				line = line.rstrip()
+				for node_id in line.split("\t"):
+					if node_id not in self.node_degree:self.node_degree[node_id] = 0
+					self.node_degree[node_id] += 1
+			netFH.close()
+
+		def calculateScore(self, edge):
+			out = -2
+			for node in edge.split("\t"):
+				if node in self.node_degree: out += self.node_degree[node]
+			return max(out, 0)
 
 
 
@@ -136,6 +187,8 @@ class CLF_Wrapper:
 		return preds
 
 def main():
+	test = Degree()
+	print test.calculateScore("O95622\tO60503")
 	mode, infile = sys.argv[1:]
 	if mode == "-test":
 		this_ELM = ELM()
