@@ -82,7 +82,7 @@ class Parser(object):
                 code = line[9].strip()
                 if term in self.go_annotations and code != cd:
                     self.go_annotations[term]['gene'].add(gene)
-                    
+        file.close()
                 
                 
                 
