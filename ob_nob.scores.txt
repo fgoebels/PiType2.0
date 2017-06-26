@@ -1,4 +1,4 @@
-ProtA	ProtB	ELMA	ELMB	Degree	Score	Fusion	Phylogenetic_profiling	Homology	Co-expression	Experiment	Database	Textmining	Neighborhood	Sim_CC	Sim_BP	Sim_MF	ClassLabel
+ProtA	ProtB	ELMA	ELMB	Degree	Score	Fusion	Phylogenetic_profiling	Homology	Co-expression	Experiment	Database	Textmining	Neighborhood	STRING_Degree	Sim_CC	Sim_BP	Sim_MF	ClassLabel
 P43246	P52701	14	19	239	0.999	0	0.164285	0	0.794	0.992	0.9	0.315172	0	10	0.812962309392	0.928474065605	1.0	ob
 P01024	Q9Y279	29	17	102	0.976	0	0	0	0.054	0.876	0	0.814	0	10	0	0.196117765027	0.0151446123989	nob
 P01094	P07267	15	20	46	0.932	0	0	0	0.084	0.868	0	0.485	0	10	0	0.154185107645	0.0640990230188	nob

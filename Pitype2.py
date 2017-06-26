@@ -16,9 +16,7 @@ print script_dir
 
 from main import load_semantic_similarity, calculate_semantic_similarity
 
-
 class GOSim(object):
-
 	def __init__(self, taxid, gene_anno_F= script_dir + "go-basic.obo", read_data = True):
 		self.name = ["Sim_CC", "Sim_BP", "Sim_MF"]
 		if read_data: self.gosim = load_semantic_similarity( gene_anno_F, taxid, "C:2.4,P:3.5,F:3.3", "")
@@ -88,7 +86,7 @@ class ELM:
 
 class STRING:
 	def __init__(self, taxid):
-		self.name = ["Score", "Fusion", "Phylogenetic_profiling", "Homology", "Co-expression", "Experiment", "Database", "Textmining", "Neighborhood"]
+		self.name = ["Score", "Fusion", "Phylogenetic_profiling", "Homology", "Co-expression", "Experiment", "Database", "Textmining", "Neighborhood", "STRING_Degree"]
 		self.score_map = {"score" : 0 , "fscore" : 1, "pscore" : 2, "hscore" : 3, "ascore" : 4, "escore" : 5, "dscore" : 6, "tscore" : 7, "nscore" : 8}
 		self.taxid = taxid
 		self.get_score = "http://string-db.org/api/psi-mi-tab/interactionsList?identifiers=%s%%0D%s&limit=0"
@@ -143,10 +141,11 @@ class Degree:
 
 
 class Pitype:
-	def __init__(self, taxid, fs):
+	def __init__(self, fs, taxid):
 		self.taxid = taxid
-		self.clf = CLF_Wrapper()
 		self.scores = self.get_fs_comb(fs)
+		fs_names = self.get_array([f.name for f in self.scores])
+		self.clf = CLF_Wrapper(fs_names)
 		self.header = "ProtA\tProtB\t" + "\t".join([s.getName() for s in self.scores])
 
 
@@ -161,12 +160,7 @@ class Pitype:
 	def get_score_for_edge(self, edge):
 		edge_scores = []
 		for score in self.scores:
-
-			this_score = score.calculateScore(edge)
-			if not isinstance(this_score, tuple) and not isinstance(this_score, list):
-				edge_scores.append(this_score)
-			else:
-				edge_scores.extend(this_score)
+			edge_scores.extend(self.get_array(score.calculateScore(edge)))
 		return  edge_scores
 
 	def predict_edge(self, edge):
@@ -175,29 +169,49 @@ class Pitype:
 		class_prob =  self.clf.predict_proba(edge_scores)
 		return "%s\t%i\t%.2f" % (edge, class_label, class_prob)
 
+	def get_array(self, obj):
+		out = []
+		if not isinstance(obj, tuple) and not isinstance(obj, list):
+			out.append(obj)
+		else:
+			for element in obj:
+				if not isinstance(element, tuple) and not isinstance(element, list):
+					out.append(element)
+				else:
+					out.extend(element)
+		return out
 
 class CLF_Wrapper:
-	def __init__(self):
+	def __init__(self, fs_names):
 		self.clf = RandomForestClassifier(n_estimators=100)
-		self.fit()
+		self.fit(fs_names)
 
 	# Get reference data from online repository
-	def fit(self, data_loc = "https://raw.githubusercontent.com/fgoebels/PiType2.0/master/ob_nob.dat.txt"):
-		data_FH = urllib2.urlopen(data_loc)
-		data_FH.readline()
+	def fit(self, fs_names, data_loc = script_dir + "ob_nob.scores.txt"):
+		data_FH = open(data_loc)
+		tokeep_cols = []
+		header = data_FH.readline().split("\t")[2:-1]
+		for i,fs_name in enumerate(header):
+			if fs_name in fs_names: tokeep_cols.append(i)
+		tokeep_cols = np.array(tokeep_cols)
+
+		print tokeep_cols
+		print np.array(header)[tokeep_cols]
+
 		targets = []
 		data = []
 		for line in data_FH:
 			line = line.rstrip()
 			line = line.split("\t")
 			scores = line[2:-1]
-			data.append(map(float, scores))
+			data.append(np.array(map(float, scores))[tokeep_cols])
 			label = line[-1]
 			if label == "nob":
 				targets.append(0)
 			else:
 				targets.append(1)
 		data_FH.close()
+		print data[0]
 		targets = np.array(targets)
 		data = np.array(data)
 		self.clf.fit(data, targets)
@@ -249,16 +263,15 @@ def make_ref():
 	outFH.close()
 
 def main():
-	mode  = sys.argv[1]
-	if mode == "-test":
-		pitype = Pitype("9606", "1000")
-
-		for edge in ["P14653\tP40424", "O75151\tP68431"]:
-#			print pitype.get_score_for_edge(edge)
-			print pitype.predict_edge(edge)
-
-	elif mode == "-make_ref":
-		make_ref()
+	fs, taxid, infile, outfile = sys.argv[1:]
+	inFH = open(infile)
+	outFH = open(outfile, "w")
+	pitype = Pitype(fs, taxid)
+	for line in inFH:
+		edge = line.rstrip()
+		print >> outFH, pitype.predict_edge(edge)
+	inFH.close()
+	outFH.close()
 
 if __name__ == "__main__":
 	try:
